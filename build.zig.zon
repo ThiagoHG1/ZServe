@@ -1,0 +1,12 @@
+.{
+    .name = .ZServe,
+    .version = "0.0.1",
+    .minimum_zig_version = "0.15.2",
+    .fingerprint = 0x7c54cf81cc994cbb,
+    .paths = .{
+        "core",
+        "build.zig",
+        "build.zig.zon",
+        "README.md"
+    },
+}
