@@ -59,7 +59,7 @@ try print("listening on port {d}\n", .{8080});
 ## Roadmap
 
 ### Foundation (in progress)
-- [ ] Controlled memory allocation — clear ownership of who allocates and who frees
+- [X] Controlled memory allocation — clear ownership of who allocates and who frees
 - [ ] Consistent error handling — custom error sets instead of `anyerror`
 - [ ] Timeouts and reconnect — exponential backoff for unstable connections
 
@@ -88,25 +88,20 @@ The end goal is to use ZServe as the foundation for a Discord TUI client that ru
 
 ## Installation
 
-Add ZServe to your `build.zig.zon`:
+Add ZServe to your project using the Zig package manager:
 
-\```zig
-.dependencies = .{
-    .ZServe = .{
-        .url = "https://github.com/yourusername/ZServe/archive/refs/heads/main.tar.gz",
-        .hash = "...",
-    },
-},
+\```
+zig fetch --save https://github.com/ThiagoHG1/ZServe/archive/refs/heads/main.tar.gz
 \```
 
-Then in your `build.zig`:
+Then in your `build.zig`, add the import:
 
 \```zig
 const zserve = b.dependency("ZServe", .{});
 exe.root_module.addImport("ZServe", zserve.module("ZServe"));
 \```
 
-Then import in your code:
+Then use it in your code:
 
 \```zig
 const zserve = @import("ZServe");

@@ -1,4 +1,5 @@
 const std = @import("std");
+const ring_buffer = @import("ring_buffer.zig");
 const net = std.net;
 
 pub const Request = struct {
@@ -29,86 +30,91 @@ pub const Request = struct {
 };
 
 pub const BufferedReader = struct {
-    buffer: [4096]u8 = undefined,
-    pos: usize,
-    len: usize,
+    buffer: ring_buffer.RingBuffer(4096),
     stream: std.net.Stream,
+    tmp: [1024]u8 = undefined,
 
     pub fn init(stream: std.net.Stream) BufferedReader {
         return .{
+            .buffer = ring_buffer.RingBuffer(4096).init(),
             .stream = stream,
-            .pos = 0,
-            .len = 0,
         };
     }
 
     pub fn fill(self: *BufferedReader) !void {
-        if (self.buffer[self.len..4096].len == 0) {
-            const rest = self.len - self.pos;
-            if (rest == 4096) {
-                return error.BufferFull;
-            }
+        const size = 4096;
+        const busy = (self.buffer.tail + size - self.buffer.head) % size;
+        const available = size - busy - 1;
 
-            std.mem.copyForwards(u8, self.buffer[0..rest], self.buffer[self.pos..self.len]);
-            self.pos = 0;
-            self.len = rest;
-        }
+        if (available == 0) return error.BufferFull;
 
-        var buf: [4096]u8 = undefined;
-        var r = self.stream.reader(&buf);
-        const n = try r.interface().readSliceShort(self.buffer[self.len..]);
-        self.len += n;
+        var temp: [4096]u8 = undefined;
+        const ler = @min(available, temp.len);
+        const n = try self.stream.read(temp[0..ler]);
+        if (n == 0) return error.EndOfStream;
+
+        try self.buffer.write(temp[0..n]);
     }
 
-    pub fn readExact(self: *@This(), n: usize) ![]u8 {
-        while (self.len - self.pos < n) {
-            try self.fill();
-        }
-
-        const result = self.buffer[self.pos .. self.pos + n];
-        self.pos += n;
-        return result;
-    }
-
-    pub fn readUntil(self: *@This(), delimiter: u8) ![]u8 {
+    pub fn readExact(self: *BufferedReader, dest: []u8) !void {
+        const n = dest.len;
         while (true) {
-            if (std.mem.indexOfScalar(u8, self.buffer[self.pos..self.len], delimiter)) |index| {
-                const start = self.pos;
-                const end = self.pos + index;
+            const busy = (self.buffer.tail + 4096 - self.buffer.head) % 4096;
+            if (busy >= n) break;
+            try self.fill();
+        }
 
-                self.pos = end + 1;
+        _ = try self.buffer.read(dest);
+    }
 
-                return self.buffer[start..end];
+    pub fn readUntil(self: *BufferedReader, delimiter: u8) ![]u8 {
+        var out_pos: usize = 0;
+        while (true) {
+            var byte: [1]u8 = undefined;
+            const read = self.buffer.read(&byte) catch 0;
+
+            if (read == 0) {
+                try self.fill();
+                continue;
             }
 
-            try self.fill();
+            if (byte[0] == delimiter) {
+                return self.tmp[0..out_pos];
+            }
+
+            if (out_pos >= self.tmp.len) return error.StreamTooLong;
+            self.tmp[out_pos] = byte[0];
+            out_pos += 1;
         }
     }
 };
 
 pub const BufferedWriter = struct {
-    buffer: [4096]u8 = undefined,
-    len: usize,
+    buffer: ring_buffer.RingBuffer(4096),
     stream: std.net.Stream,
 
     pub fn init(stream: std.net.Stream) @This() {
         return .{
-            .len = 0,
+            .buffer = ring_buffer.RingBuffer(4096).init(),
             .stream = stream,
         };
     }
 
     pub fn write(self: *@This(), bytes: []const u8) !void {
-        if (self.len + bytes.len > self.buffer.len) {
-            try self.flush();
-        }
-
-        std.mem.copyForwards(u8, self.buffer[self.len .. self.len + bytes.len], bytes);
-        self.len += bytes.len;
+        try self.buffer.write(bytes);
     }
 
     pub fn flush(self: *@This()) !void {
-        try self.stream.writeAll(self.buffer[0..self.len]);
-        self.len = 0;
+        if (self.buffer.head == self.buffer.tail) return;
+
+        const end = if (self.buffer.tail > self.buffer.head) self.buffer.tail else 4096;
+        try self.stream.writeAll(self.buffer.buffer[self.buffer.head..end]);
+
+        if (self.buffer.tail < self.buffer.head) {
+            try self.stream.writeAll(self.buffer.buffer[0..self.buffer.tail]);
+        }
+
+        self.buffer.head = 0;
+        self.buffer.tail = 0;
     }
 };
