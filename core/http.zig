@@ -32,7 +32,6 @@ pub const Request = struct {
 pub const BufferedReader = struct {
     buffer: ring_buffer.RingBuffer(4096),
     stream: std.net.Stream,
-    tmp: [1024]u8 = undefined,
 
     pub fn init(stream: std.net.Stream) BufferedReader {
         return .{
@@ -67,8 +66,10 @@ pub const BufferedReader = struct {
         _ = try self.buffer.read(dest);
     }
 
-    pub fn readUntil(self: *BufferedReader, delimiter: u8) ![]u8 {
-        var out_pos: usize = 0;
+    pub fn readUntil(self: *BufferedReader, allocator: std.mem.Allocator, delimiter: u8) ![]u8 {
+        var temp: std.ArrayList(u8) = .empty;
+        errdefer temp.deinit(allocator);
+
         while (true) {
             var byte: [1]u8 = undefined;
             const read = self.buffer.read(&byte) catch 0;
@@ -79,12 +80,10 @@ pub const BufferedReader = struct {
             }
 
             if (byte[0] == delimiter) {
-                return self.tmp[0..out_pos];
+                return try temp.toOwnedSlice(allocator);
             }
 
-            if (out_pos >= self.tmp.len) return error.StreamTooLong;
-            self.tmp[out_pos] = byte[0];
-            out_pos += 1;
+            try temp.append(allocator, byte[0]);
         }
     }
 };
