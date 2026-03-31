@@ -2,6 +2,8 @@
 
 Low-level networking library in Zig 0.15 focused on performance, control, and protocol-level understanding, written directly on top of `std.net` without relying on high-level stdlib abstractions. Designed to serve as the foundation for real projects — and as a portfolio of low-level network protocol implementations.
 
+**Documentation online:** [https://ThiagoHG1.github.io/ZServe/](https://ThiagoHG1.github.io/ZServe/)
+
 ## Why from scratch?
 
 ## Why from scratch?
