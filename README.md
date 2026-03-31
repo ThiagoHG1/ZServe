@@ -117,11 +117,12 @@ var client = try zserve.tcp.TcpClient.connect(allocator, "example.com", 80);
 
 ```
 src/
-├── root.zig         — public library exports
+├── root.zig            — public library exports
 ├── core/
-│   ├── tcp.zig      — TcpClient
-│   ├── http.zig     — BufferedReader, BufferedWriter, Request
-│   └── socket.zig   — OpenServer
+│   ├── tcp.zig         — TcpClient
+│   ├── http.zig        — BufferedReader, BufferedWriter, Request
+│   ├── ring_buffer.zig — Empty, Full, NumItems, Avaliable, Write, Read, Peek
+│   └── socket.zig      — OpenServer
 └── utils/
-    └── print.zig    — print with flush
+    └── print.zig       — print with flush
 ```
