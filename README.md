@@ -1,10 +1,12 @@
 # ZServe
 
-A networking library built from scratch in Zig 0.15, written directly on top of `std.net` without relying on high-level stdlib abstractions. Designed to serve as the foundation for real projects — and as a portfolio of low-level network protocol implementations.
+Low-level networking library in Zig 0.15 focused on performance, control, and protocol-level understanding, written directly on top of `std.net` without relying on high-level stdlib abstractions. Designed to serve as the foundation for real projects — and as a portfolio of low-level network protocol implementations.
 
 ## Why from scratch?
 
-Zig's stdlib already provides `std.http.Client`. ZServe exists for two reasons: to deeply understand how network protocols work under the hood, and to have full control over memory allocation, error handling, and performance in future projects.
+## Why from scratch?
+
+Zig's stdlib already provides `std.http.Client`. ZServe is built from scratch to eliminate abstraction overhead and provide full control over memory allocation, error handling, and performance at a granular level — forming the foundation for real-world systems like a fully custom Discord TUI client over raw TCP, WebSocket, and UDP protocols.
 
 ## What's implemented
 
@@ -20,7 +22,7 @@ const line = try client.reader.readUntil('\n');
 ```
 
 ### Buffered Reader (`core/http.zig`)
-Robust read buffer with automatic compaction when space runs out.
+Ring buffer–based reader with automatic compaction and efficient stream handling.
 
 ```zig
 // read until a delimiter

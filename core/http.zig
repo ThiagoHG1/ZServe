@@ -41,29 +41,24 @@ pub const BufferedReader = struct {
     }
 
     pub fn fill(self: *BufferedReader) !void {
-        const size = 4096;
-        const busy = (self.buffer.tail + size - self.buffer.head) % size;
-        const available = size - busy - 1;
-
-        if (available == 0) return error.BufferFull;
+        if (self.buffer.ring_buffer_full()) return error.BufferFull;
 
         var temp: [4096]u8 = undefined;
-        const ler = @min(available, temp.len);
+        const ler = @min(self.buffer.ring_buffer_avaliable(), temp.len);
         const n = try self.stream.read(temp[0..ler]);
         if (n == 0) return error.EndOfStream;
 
-        try self.buffer.write(temp[0..n]);
+        try self.buffer.ring_buffer_write(temp[0..n]);
     }
 
     pub fn readExact(self: *BufferedReader, dest: []u8) !void {
         const n = dest.len;
         while (true) {
-            const busy = (self.buffer.tail + 4096 - self.buffer.head) % 4096;
-            if (busy >= n) break;
+            if (try self.buffer.ring_buffer_full() >= n) break;
             try self.fill();
         }
 
-        _ = try self.buffer.read(dest);
+        _ = try self.buffer.ring_buffer_read(dest);
     }
 
     pub fn readUntil(self: *BufferedReader, allocator: std.mem.Allocator, delimiter: u8) ![]u8 {
@@ -72,7 +67,7 @@ pub const BufferedReader = struct {
 
         while (true) {
             var byte: [1]u8 = undefined;
-            const read = self.buffer.read(&byte) catch 0;
+            const read = self.buffer.ring_buffer_read(&byte) catch 0;
 
             if (read == 0) {
                 try self.fill();
@@ -100,17 +95,21 @@ pub const BufferedWriter = struct {
     }
 
     pub fn write(self: *@This(), bytes: []const u8) !void {
-        try self.buffer.write(bytes);
+        try self.buffer.ring_buffer_write(bytes);
     }
 
     pub fn flush(self: *@This()) !void {
-        if (self.buffer.head == self.buffer.tail) return;
+        if (self.buffer.ring_buffer_empty()) return;
 
-        const end = if (self.buffer.tail > self.buffer.head) self.buffer.tail else 4096;
-        try self.stream.writeAll(self.buffer.buffer[self.buffer.head..end]);
+        const end = if (self.buffer.tail > self.buffer.head)
+            self.buffer.tail
+        else
+            self.buffer.ring_buffer.len;
+
+        try self.stream.writeAll(self.buffer.ring_buffer[self.buffer.head..end]);
 
         if (self.buffer.tail < self.buffer.head) {
-            try self.stream.writeAll(self.buffer.buffer[0..self.buffer.tail]);
+            try self.stream.writeAll(self.buffer.ring_buffer[0..self.buffer.tail]);
         }
 
         self.buffer.head = 0;
