@@ -59,14 +59,11 @@ pub fn RingBuffer(comptime buffer_size: usize) type {
             return r;
         }
 
-        pub fn ring_buffer_peek(self: @This(), data: *u8, index: usize) !u8 {
-            if (index >= try self.ring_buffer_num_items()) {
-                return 0;
-            }
+        pub fn ring_buffer_peek(self: @This(), index: usize) ?u8 {
+            if (index >= self.ring_buffer_num_items()) return null;
 
-            const data_index = (self.tail + index) & self.ring_buffer_bitmask;
-            data.* = self.ring_buffer[data_index];
-            return 1;
+            const i = (self.head + index) & self.ring_buffer_bitmask;
+            return self.ring_buffer[i];
         }
     };
 }
