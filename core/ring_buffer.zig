@@ -41,12 +41,12 @@ pub fn RingBuffer(comptime buffer_size: usize) type {
 
         /// Returns true if the buffer is full and cannot accept more data.
         pub fn ring_buffer_full(self: @This()) bool {
-            return ((self.head - self.tail) & self.ring_buffer_bitmask) == self.ring_buffer_bitmask;
+            return ((self.tail -% self.head) & self.ring_buffer_bitmask) == self.ring_buffer_bitmask;
         }
 
         /// Returns the number of bytes currently stored in the buffer.
         pub fn ring_buffer_num_items(self: @This()) usize {
-            return (self.tail - self.head) & self.ring_buffer_bitmask;
+            return (self.tail -% self.head) & self.ring_buffer_bitmask;
         }
 
         /// Returns how many bytes can still be written without overwriting unread data.
